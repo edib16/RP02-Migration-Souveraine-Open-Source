@@ -1,6 +1,6 @@
-# RP07 - Migration Souveraine Open Source (FreeRADIUS/OpenLDAP)
+# RP02 - Migration Souveraine Open Source (FreeRADIUS/OpenLDAP)
 
-> 🌐 **Aperçu Visuel :** Retrouvez une présentation illustrée de ce projet sur mon portfolio : [edib16.github.io/Portfolio/#RP07](https://edib16.github.io/Portfolio/#RP07)
+> 🌐 **Aperçu Visuel :** Retrouvez une présentation illustrée de ce projet sur mon portfolio : [edib16.github.io/Portfolio/#RP02](https://edib16.github.io/Portfolio/#RP02)
 
 > **Auteur :** Edib Saoud
 > **Date :** 02/03/2026 - 30/04/2026
@@ -27,7 +27,7 @@ L'objectif principal était de migrer l'authentification réseau vers une "Stack
 | | **Travailler en mode projet** | Conduite du changement, planification de la migration sur 2 mois avec tests de non-régression. |
 | | **Mettre à disposition un service informatique** | Déploiement d'un annuaire OpenLDAP, d'un serveur FreeRADIUS et de la supervision Grafana. |
 
-## 4. Planning de Réalisation (Diagramme de Gantt)
+## 4. Planning de Realisation (Gantt)
 
 La méthode Agile (itérative) a été privilégiée pour s'assurer que l'ancienne authentification reste active pendant le maquettage de la nouvelle.
 
@@ -37,15 +37,15 @@ gantt
     dateFormat  YYYY-MM-DD
     axisFormat  %m/%d
     
-    section Cadrage & Socle
-    Cadrage & Préparation Debian        :done, des1, 2026-03-02, 14d
+    section Cadrage et Socle
+    Cadrage et Preparation Debian        :done, des1, 2026-03-02, 14d
     
-    section Identité (LDAP/RADIUS)
-    Déploiement OpenLDAP                :active, des2, 2026-03-16, 10d
+    section Identite (LDAP/RADIUS)
+    Deploiement OpenLDAP                :active, des2, 2026-03-16, 10d
     Liaison FreeRADIUS / OpenLDAP       :        des3, 2026-03-26, 10d
     
-    section Réseau & Supervision
-    Bascule Équipements Cisco (SNMP)    :        des4, 2026-04-05, 10d
-    Déploiement Docker (Grafana/Prometheus) :    des5, 2026-04-15, 10d
-    Validation Finale & Recette         :        des6, 2026-04-25, 5d
+    section Reseau et Supervision
+    Bascule Equipements Cisco (SNMP)    :        des4, 2026-04-05, 10d
+    Deploiement Docker (Grafana/Prometheus) :    des5, 2026-04-15, 10d
+    Validation Finale et Recette         :        des6, 2026-04-25, 5d
 ```
