@@ -27,25 +27,11 @@ L'objectif principal était de migrer l'authentification réseau vers une "Stack
 | | **Travailler en mode projet** | Conduite du changement, planification de la migration sur 2 mois avec tests de non-régression. |
 | | **Mettre à disposition un service informatique** | Déploiement d'un annuaire OpenLDAP, d'un serveur FreeRADIUS et de la supervision Grafana. |
 
-## 4. Planning de Realisation (Gantt)
+## 4. Roadmap de la Migration
 
-La méthode Agile (itérative) a été privilégiée pour s'assurer que l'ancienne authentification reste active pendant le maquettage de la nouvelle.
+1. **Preparation :** Audit de l'infrastructure NPS existante et definition du plan de bascule.
+2. **Infrastructure :** Deploiement des serveurs Debian 12 et securisation des socles.
+3. **Services :** Configuration d'OpenLDAP (Annuaire) et FreeRADIUS (Authentification).
+4. **Supervision :** Mise en place de la stack Docker (Prometheus/Grafana) pour le monitoring.
+5. **Recette :** Bascule reelle des equipements Cisco et validation de la continuite de service.
 
-```mermaid
-gantt
-    title Migration Souveraine (RADIUS/LDAP)
-    dateFormat  YYYY-MM-DD
-    axisFormat  %m/%d
-    
-    section Cadrage et Socle
-    Cadrage et Preparation Debian        :done, des1, 2026-03-02, 14d
-    
-    section Identite (LDAP/RADIUS)
-    Deploiement OpenLDAP                :active, des2, 2026-03-16, 10d
-    Liaison FreeRADIUS / OpenLDAP       :        des3, 2026-03-26, 10d
-    
-    section Reseau et Supervision
-    Bascule Equipements Cisco (SNMP)    :        des4, 2026-04-05, 10d
-    Deploiement Docker (Grafana/Prometheus) :    des5, 2026-04-15, 10d
-    Validation Finale et Recette         :        des6, 2026-04-25, 5d
-```
