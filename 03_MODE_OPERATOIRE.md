@@ -1,63 +1,105 @@
-# Mode Opératoire - Gestion Open Source & Supervision
+# Mode operatoire - RP02
 
-> **Auteur :** Edib Saoud
-> **Date :** 02/03/2026 - 30/04/2026
-> **Version :** 1.0
-> **Cible :** Support Informatique / Administrateurs Réseaux
+> **Public cible :** support informatique / administration reseau  
+> **Perimetre :** OpenLDAP, FreeRADIUS, equipements Cisco, stack monitoring
 
----
+## 1. Exploitation courante
 
-## 1. Gestion de l'Annuaire OpenLDAP
+| Action | CLI | GUI |
+|:--|:--|:--|
+| Verification etat services | `systemctl status` / `docker ps` | - |
+| Controle authentification | `test aaa`, `ldapsearch`, `radtest` | - |
+| Consultation metriques | - | Grafana dashboards |
+| Consultation logs | fichiers + promtail/loki | Grafana Explore |
 
-### 1.1 Ajouter un nouvel utilisateur
-Contrairement à l'Active Directory, l'ajout d'utilisateurs natif se fait via fichier `.ldif`.
-1. Créer un fichier `nouvel_utilisateur.ldif` :
+## 2. Gestion annuaire LDAP (CLI)
+
+### 2.1 Ajouter un utilisateur (mode LDIF)
+
 ```ldif
-dn: uid=j.dupont,ou=Utilisateurs,dc=iris,dc=local
+dn: uid=<UID_UTILISATEUR>,ou=<OU_CIBLE>,dc=<DOMAINE>,dc=<LOCAL>
 objectClass: inetOrgPerson
 objectClass: posixAccount
-uid: j.dupont
-sn: Dupont
-givenName: Jean
-cn: Jean Dupont
-userPassword: Password123
+uid: <UID_UTILISATEUR>
+sn: <NOM_MASQUE>
+givenName: <PRENOM_MASQUE>
+cn: <CN_MASQUE>
+userPassword: <MOT_DE_PASSE_MASQUE>
 ```
-2. Appliquer la modification :
+
 ```bash
-ldapadd -x -D "cn=admin,dc=iris,dc=local" -W -f nouvel_utilisateur.ldif
+ldapadd -x -D "cn=admin,dc=<DOMAINE>,dc=<LOCAL>" -W -f nouvel_utilisateur.ldif
 ```
 
-### 1.2 Vérifier la présence d'un utilisateur
-Pour faire une recherche sur l'annuaire depuis la ligne de commande :
+### 2.2 Verifier une entree
+
 ```bash
-ldapsearch -x -b "dc=iris,dc=local" "(uid=j.dupont)"
+ldapsearch -x -LLL -H ldap://localhost -b "dc=<DOMAINE>,dc=<LOCAL>" "(uid=<UID_UTILISATEUR>)" dn cn uid
 ```
 
----
+## 3. Gestion FreeRADIUS (CLI)
 
-## 2. Dépannage FreeRADIUS
+### 3.1 Verifier la configuration
 
-**Cas d'usage :** Les authentifications Wi-Fi ou filaires (Cisco) sont rejetées.
+Fichiers de reference :
 
-1. Arrêter le service tournant en tâche de fond :
-   `sudo systemctl stop freeradius`
-2. Lancer FreeRADIUS en **Mode Débogage (Debug)** pour voir la transaction en direct :
-   `sudo freeradius -X`
-3. Analyser la sortie :
-   - Si la ligne affiche `Access-Accept` : C'est le switch Cisco qui bloque.
-   - Si la ligne affiche `Access-Reject` ou une erreur de liaison LDAP : L'identifiant est incorrect, ou la connexion avec OpenLDAP a échoué.
-4. Une fois le test terminé (Ctrl+C), relancer le service normalement :
-   `sudo systemctl start freeradius`
+- `/etc/freeradius/3.0/clients.conf`
+- `/etc/freeradius/3.0/mods-enabled/ldap`
+- `/etc/freeradius/3.0/mods-enabled/eap`
+- `/etc/freeradius/3.0/sites-enabled/default`
+- `/etc/freeradius/3.0/sites-enabled/inner-tunnel`
 
----
+### 3.2 Diagnostic d'authentification
 
-## 3. Accès à la Supervision (Grafana)
+```bash
+sudo systemctl stop freeradius
+sudo freeradius -X
+```
 
-**Cas d'usage :** Surveillance de l'état des ports du Switch et de la charge du serveur Debian.
+Interpretation :
 
-1. Ouvrir le navigateur et se rendre sur `http://192.168.50.100:3000`.
-2. S'authentifier (Identifiants fournis dans la base de mots de passe de l'école).
-3. Se rendre dans le menu **Dashboards**.
-   - Le dashboard "Node Exporter" remonte la RAM, le CPU et le disque du serveur Debian.
-   - Le dashboard "Cisco SNMP" affiche la bande passante utilisée sur chaque port Gigabit du switch et les éventuelles pertes de paquets.
-4. Les journaux d'événements FreeRADIUS sont consultables directement dans Grafana via le composant **Loki** (Menu *Explore*).
+- `Access-Accept` : authentification valide.
+- `Access-Reject` : identifiants invalides ou regle LDAP/RADIUS non satisfaite.
+
+Retour normal :
+
+```bash
+sudo systemctl start freeradius
+```
+
+## 4. Exploitation reseau Cisco (CLI)
+
+Controles prioritaires :
+
+1. Presence des serveurs RADIUS declares.
+2. Activation AAA/dot1x.
+3. Envoi syslog vers la plateforme de logs.
+4. Configuration SNMP de supervision.
+
+Preuves techniques : fichiers `preuves/configs/runconf-*.txt`.
+
+## 5. Supervision et observabilite
+
+### 5.1 CLI - stack monitoring
+
+```bash
+cd ~/monitoring
+docker ps
+```
+
+Verifier la presence des conteneurs : prometheus, grafana, loki, promtail, node-exporter, snmp-exporter.
+
+### 5.2 GUI - Grafana
+
+1. Ouvrir Grafana via l'URL d'exploitation.
+2. Verifier les dashboards :
+   - metriques SNMP reseau ;
+   - metriques Node Exporter ;
+   - centralisation logs (Loki/Promtail).
+
+## 6. Sauvegarde et securite (exploitation)
+
+- Sauvegarder regulierement les LDIF et fichiers de configuration.
+- Restreindre l'acces aux fichiers contenant des secrets.
+- Ne jamais publier de sortie brute non masquee dans la documentation.
+

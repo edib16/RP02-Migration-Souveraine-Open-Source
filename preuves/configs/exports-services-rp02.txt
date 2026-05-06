@@ -1,0 +1,141 @@
+# EXPORTS SERVICES - RP02
+# Ce fichier regroupe les extraits de configuration et commandes de vérification pour la chaîne Open Source.
+
+===============================================================================
+1. OPENLDAP - VÉRIFICATION ARBORESCENCE (CLI)
+===============================================================================
+
+# Commande : ldapsearch -x -LLL -b "dc=iris,dc=local"
+# Résultat attendu : Liste des OU (Etudiants, Profs, Admin) et des comptes importés.
+
+dn: dc=iris,dc=local
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: IRIS Mediaschool
+dc: iris
+
+dn: ou=Utilisateurs,dc=iris,dc=local
+objectClass: organizationalUnit
+ou: Utilisateurs
+
+# [EXTRAIT LDIF - UTILISATEUR TEST]
+dn: uid=user.test,ou=Utilisateurs,dc=iris,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: user.test
+sn: TEST
+givenName: User
+cn: User TEST
+userPassword: {SSHA}xxxxxxxxxxxxxxxxxxxxxxxx
+
+===============================================================================
+2. FREERADIUS - CONFIGURATION LIAISON LDAP
+===============================================================================
+
+# Fichier : /etc/freeradius/3.0/mods-enabled/ldap
+ldap {
+    server = "localhost"
+    identity = "cn=admin,dc=iris,dc=local"
+    password = <PASSWORD_MASQUE>
+    base_dn = "dc=iris,dc=local"
+    user {
+        base_dn = "${..base_dn}"
+        filter = "(uid=%{%{Stripped-User-Name}:-%{User-Name}})"
+    }
+}
+
+# Fichier : /etc/freeradius/3.0/sites-enabled/inner-tunnel
+# Attribution dynamique de VLAN basée sur l'OU LDAP
+update reply {
+    Tunnel-Type := VLAN
+    Tunnel-Medium-Type := IEEE-802
+    Tunnel-Private-Group-Id := "%{Ldap-Group}"
+}
+
+===============================================================================
+3. SUPERVISION - STACK DOCKER (DOCKER-COMPOSE.YML)
+===============================================================================
+
+services:
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+
+  loki:
+    image: grafana/loki
+    ports:
+      - 3100:3100
+
+  promtail:
+    image: grafana/promtail
+    volumes:
+      - /var/log:/var/log
+      - ./promtail-config.yml:/etc/promtail/config.yml
+
+  snmp-exporter:
+    image: prom/snmp-exporter
+    ports:
+      - 9116:9116
+
+===============================================================================
+4. PROMETHEUS - CONFIGURATION DES CIBLES (PROMETHEUS.YML)
+===============================================================================
+
+scrape_configs:
+  - job_name: 'snmp'
+    static_configs:
+      - targets:
+        - 192.168.1.1  # R1-IRIS
+        - 192.168.1.2  # SW1-IRIS
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
+===============================================================================
+5. LOGS - CONFIGURATION PROMTAIL (PROMTAIL-CONFIG.YML)
+===============================================================================
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: syslog
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          __path__: /var/log/syslog
+
+===============================================================================
+6. VALIDATION TECHNIQUE - TESTS AAA (CLI)
+===============================================================================
+
+# [TEST RADIUS LOCAL - RADTEST]
+# Commande : radtest user.test <MOT_DE_PASSE> localhost 0 <SECRET_RADIUS>
+# Résultat :
+Sent Access-Request Id 1 from 0.0.0.0:45678 to 127.0.0.1:1812 length 77
+Received Access-Accept Id 1 from 127.0.0.1:1812 length 56
+    Tunnel-Type = VLAN
+    Tunnel-Medium-Type = IEEE-802
+    Tunnel-Private-Group-Id = "10"
+
+# [TEST AAA ÉQUIPEMENT - CISCO]
+# Commande : test aaa group radius user.test <MOT_DE_PASSE> legacy
+# Résultat :
+Attempting authentication test to server-group radius using radius
+User was successfully authenticated.

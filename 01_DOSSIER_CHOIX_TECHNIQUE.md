@@ -1,55 +1,79 @@
-# Dossier de Choix Technique - Migration Souveraine (OpenLDAP / RADIUS)
+# Dossier de choix technique - RP02
 
-> **Auteur :** Edib Saoud
-> **Date :** 02/03/2026 - 30/04/2026
-> **Version :** 1.0
-> **Statut :** Validé
+> **Auteur :** Edib Saoud  
+> **Version :** 2.0  
+> **Statut :** Documentation consolidée
 
----
+## 1. Contexte et objectif technique
 
-## 1. Contexte et Problématique
+Le projet répond à un objectif de souveraineté numérique : remplacer une chaîne propriétaire d'authentification réseau par une chaîne Open Source exploitable localement.
 
-L'infrastructure historique reposait sur des systèmes d'authentification fermés et propriétaires. Pour reprendre le contrôle des données d'identité et s'affranchir des coûts de licence, le groupe Mediaschool a décidé d'opérer une migration souveraine.
+Les objectifs fonctionnels sont :
 
-La problématique technique était double :
-1. **Remplacer l'annuaire et le serveur d'authentification** de manière transparente pour les équipements réseaux Cisco.
-2. **Maintenir un haut niveau de visibilité** sur la santé du réseau grâce à une supervision open source moderne.
+1. Assurer l'authentification réseau (filaire et Wi-Fi) via LDAP/RADIUS.
+2. Conserver la continuité de service pendant la bascule.
+3. Ajouter une supervision unifiée (métriques + logs) exploitable par l'équipe IT.
 
----
+## 2. Existant constaté avant migration
 
-## 2. Choix Technologiques
+- Équipements d'accès Cisco déjà en production.
+- Dépendance historique à un serveur d'authentification propriétaire.
+- Besoin d'une bascule progressive (cohabitation ancien/nouveau RADIUS observée dans les `runconf`).
 
-### 2.1 Socle Système et Identité
-- **Système d'exploitation :** Debian 12 (Bookworm). Une distribution libre de référence, très stable pour les serveurs de production.
-- **Serveur d'Annuaire :** **OpenLDAP**. La référence absolue en matière d'annuaire libre (LDAP v3), permettant de centraliser les comptes étudiants et professeurs.
-- **Serveur d'Authentification :** **FreeRADIUS**. Il remplace le serveur propriétaire pour valider les connexions 802.1X (Wi-Fi/Filaire) en interrogeant la base OpenLDAP.
+## 3. Solutions retenues et justification
 
-### 2.2 Stack de Supervision
-Afin de monitorer la charge du serveur et l'état des switchs Cisco de manière centralisée, un environnement conteneurisé a été retenu pour sa facilité de déploiement :
-- **Moteur :** Docker et Docker Compose.
-- **Collecte (Metrics & Logs) :** Prometheus (récupération des données) et Loki (agrégation des journaux).
-- **Agents :** Node Exporter (santé du serveur Debian) et exportateur SNMP (interrogation des switchs Cisco).
-- **Restitution visuelle :** **Grafana**, pour la création de tableaux de bord (Dashboards).
+| Besoin | Solution retenue | Justification |
+|:--|:--|:--|
+| Annuaire centralisé | OpenLDAP | Standard ouvert, interopérable avec FreeRADIUS |
+| Contrôle d'accès 802.1X | FreeRADIUS | Compatible équipements Cisco et VLAN dynamiques |
+| Supervision métriques | Prometheus + exporters | Collecte unifiée serveur + équipements réseau |
+| Visualisation | Grafana | Exploitation opérationnelle et support recette |
+| Centralisation logs | Loki + Promtail | Corrélation événements réseau/services |
+| Services réseau annexes | Kea DHCP + Keepalived/VRRP | Stabilité d'exploitation sur la topologie cible |
+| Socle système | Debian 12 | Cohérence, stabilité, maintenance simplifiée |
 
-### 2.3 Paramètres d'Infrastructure
-- **IP Serveur (Debian) :** `192.168.50.100` (Sert de serveur RADIUS, LDAP et Grafana).
-- **Domaine LDAP :** `dc=iris,dc=local`
-- **Clients RADIUS :** Switchs et AP Cisco du LAN existant (`192.168.50.253`, `192.168.50.150`).
+## 4. Architecture logique cible
 
----
+### 4.1 Plan fonctionnel
 
-## 3. Schéma de l'Architecture Globale
+1. Les terminaux s'authentifient sur les équipements Cisco.
+2. Les équipements interrogent FreeRADIUS.
+3. FreeRADIUS vérifie l'identité via OpenLDAP.
+4. Les règles de groupe appliquent les attributions réseau (VLAN dynamiques).
+5. Les métriques/logs remontent vers Prometheus/Loki puis Grafana.
 
-Le schéma suivant détaille les interactions entre les équipements réseaux (Cisco), le module RADIUS (FreeRADIUS) qui interroge la base OpenLDAP, et la boucle de supervision Grafana/Prometheus (SNMP).
+### 4.2 Niveaux d'administration
 
-![Schéma réseau global RP07](./Schema_Reseau_RP07.png)
+- **CLI** : Debian, FreeRADIUS, OpenLDAP, Docker, Cisco.
+- **GUI** : Grafana uniquement (sources, dashboards, consultation logs).
 
----
+### 4.3 Description de l'architecture (Schéma logique)
 
-## 4. Analyse des Risques et Atténuation
+L'architecture se décompose en trois segments principaux :
 
-| Risque Identifié | Impact | Probabilité | Mesure de prévention (Traitement) |
-|:---|:---:|:---:|:---|
-| **Rupture d'authentification réseau** | Élevé | Moyen | Bascule progressive (un switch à la fois). L'ancien serveur reste disponible en "secondary radius server" sur Cisco. |
-| **Incohérence ou perte des comptes LDAP** | Moyen | Faible | Scripts d'exportation/importation validés. Sauvegarde ldif quotidienne avant mise en production. |
-| **Absence de supervision pendant la bascule** | Élevé | Moyen | La stack Docker (Grafana) est déployée *avant* la bascule des clients pour monitorer le comportement de FreeRADIUS en direct. |
+1.  **Segment Accès (Cisco)** : Composé d'un commutateur 2960 (SW1), d'un routeur 2911 (R1) et d'une borne Wi-Fi (AP1). Ces équipements agissent comme des "Authenticators" 802.1X.
+2.  **Segment Services (Debian)** : Un serveur central hébergeant la chaîne de confiance Open Source :
+    *   **FreeRADIUS** : Traite les requêtes Access-Request via le protocole EAP-PEAP.
+    *   **OpenLDAP** : Sert de base d'utilisateurs unique (référentiel d'identité).
+    *   **Docker** : Isole la stack de supervision (Prometheus, Grafana, Loki).
+3.  **Segment Flux** :
+    *   Flux **AAA** (RADIUS/UDP 1812-1813) entre Cisco et Debian.
+    *   Flux **LDAP** (TCP 389) en local sur le serveur Debian.
+    *   Flux **Supervision** (SNMP/UDP 161) pour la collecte des métriques réseau.
+
+## 5. Risques et mesures retenues
+
+| Risque | Impact | Traitement |
+|:--|:--:|:--|
+| Rupture d'authentification | Élevé | Bascule progressive et coexistence temporaire ancien/nouveau RADIUS |
+| Erreur de mapping utilisateurs/groupes | Moyen | Vérifications LDAP et règles de groupes dans `inner-tunnel` |
+| Perte de visibilité pendant migration | Élevé | Mise en place monitoring/logging avant validation finale |
+| Exposition d'informations sensibles | Élevé | Politique de masquage strict dans la documentation publique |
+
+## 6. Preuves utilisées
+
+- `preuves/configs/runconf-cisco-sw1-iris.txt`
+- `preuves/configs/runconf-cisco-r1-iris.txt`
+- `preuves/configs/runconf-cisco-ap1-iris.txt`
+- `preuves/configs/runconf-debian-vrouteur-iris.txt`
+- `preuves/configs/exports-services-rp02.txt`

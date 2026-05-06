@@ -1,37 +1,65 @@
-# RP02 - Migration Souveraine Open Source (FreeRADIUS/OpenLDAP)
+# RP02 - Migration Souveraine Open Source
 
-> 🌐 **Aperçu Visuel :** Retrouvez une présentation illustrée de ce projet sur mon portfolio : [edib16.github.io/Portfolio/#RP02](https://edib16.github.io/Portfolio/#RP02)
+> **Auteur :** Edib Saoud  
+> **Période :** 02/03/2026 -> 30/04/2026  
+> **Contexte :** BTS SIO SISR - IRIS Mediaschool
 
-> **Auteur :** Edib Saoud
-> **Date :** 02/03/2026 - 30/04/2026
-> **Contexte :** Projet BTS SIO SISR - IRIS Mediaschool (Mediaschool Group)
+Ce dépôt documente la migration d'une chaîne d'authentification propriétaire vers une architecture Open Source, avec supervision centralisée et exploitation réseau associée.
 
-## 1. Contexte du Projet
+## 1. Périmètre réellement réalisé
 
-Dans le cadre d'une démarche globale de **souveraineté numérique** initiée par la Direction Technique du groupe Mediaschool, l'infrastructure d'authentification réseau de l'école devait s'affranchir des solutions propriétaires (éditeurs tiers).
+1. **Identité et authentification** : OpenLDAP + FreeRADIUS sur Debian 12.
+2. **Accès réseau** : bascule des équipements Cisco (switch, routeur, AP) vers le nouveau serveur RADIUS.
+3. **Supervision et logs** : Docker, Prometheus, Grafana, Loki, Promtail, Node Exporter, SNMP Exporter.
+4. **Services annexes intégrés au RP02** : Kea DHCP et Keepalived/VRRP (contexte d'exploitation réseau).
 
-L'objectif principal était de migrer l'authentification réseau vers une "Stack Libre" entièrement maîtrisée, reposant sur **OpenLDAP** pour l'annuaire des utilisateurs et **FreeRADIUS** pour le contrôle d'accès. Ce projet inclut également le déploiement d'une stack de supervision complète conteneurisée sous **Docker** (Prometheus, Loki, Grafana) afin d'assurer la continuité de service.
+## 2. Chronologie réelle (par phases)
 
-## 2. Sommaire de la Documentation
+1. **Socle Debian** : installation Debian 12 et configuration de base.
+2. **Chaîne Open Source** : déploiement FreeRADIUS + OpenLDAP.
+3. **Migration annuaire** : conversion AD vers LDAP et import des entrées.
+4. **Bascule réseau** : changement des équipements Cisco vers le nouveau RADIUS.
+5. **Supervision** : déploiement stack Docker monitoring/logging.
+6. **Recette** : validation AAA sur équipements et vérifications d'observabilité.
 
-1. [Dossier de Choix Technique](01_DOSSIER_CHOIX_TECHNIQUE.md) : Analyse de l'existant, choix des outils Open Source et plan d'intégration de la supervision.
-2. [Procédure d'Installation](02_PROCEDURE_INSTALLATION.md) : Installation d'OpenLDAP, configuration de FreeRADIUS et déploiement de Docker/Grafana.
-3. [Mode Opératoire](03_MODE_OPERATOIRE.md) : Gestion courante de l'annuaire (ajout d'utilisateurs LDAP) et accès aux dashboards Grafana.
-4. [Cahier de Recette](04_CAHIER_DE_RECETTE.md) : Validation des connexions depuis les switchs Cisco et vérification de la remontée SNMP.
+## 3. Distinction CLI vs GUI
 
-## 3. Compétences SISR Mobilisées (Blocs BTS SIO)
+| Domaine | CLI (réalisé) | GUI (réalisé) |
+|:--|:--|:--|
+| Déploiement OpenLDAP/FreeRADIUS | Installation, configuration, tests LDAP/RADIUS | - |
+| Bascule Cisco | `runconf`, AAA, RADIUS, SNMP, syslog | - |
+| Monitoring | Docker Compose, Prometheus, promtail, snmp-exporter | Grafana (sources + dashboards) |
+| Recette | `test aaa`, `ldapsearch`, vérifications de services | Contrôle visuel dashboards/logs Grafana |
 
-| Bloc de Compétences | Compétences spécifiques validées dans ce projet | Preuves / Exemples concrets |
-|:---|:---|:---|
-| **Bloc 1 : Support et mise à disposition de services informatiques** | **Gérer le patrimoine informatique** | Remplacement d'une infrastructure propriétaire par une solution libre (Debian 12). |
-| | **Travailler en mode projet** | Conduite du changement, planification de la migration sur 2 mois avec tests de non-régression. |
-| | **Mettre à disposition un service informatique** | Déploiement d'un annuaire OpenLDAP, d'un serveur FreeRADIUS et de la supervision Grafana. |
+## 4. Dossiers documentaires
 
-## 4. Roadmap de la Migration
+1. [01_DOSSIER_CHOIX_TECHNIQUE.md](01_DOSSIER_CHOIX_TECHNIQUE.md)
+2. [02_PROCEDURE_INSTALLATION.md](02_PROCEDURE_INSTALLATION.md)
+3. [03_MODE_OPERATOIRE.md](03_MODE_OPERATOIRE.md)
+4. [04_CAHIER_DE_RECETTE.md](04_CAHIER_DE_RECETTE.md)
 
-1. **Preparation :** Audit de l'infrastructure NPS existante et definition du plan de bascule.
-2. **Infrastructure :** Deploiement des serveurs Debian 12 et securisation des socles.
-3. **Services :** Configuration d'OpenLDAP (Annuaire) et FreeRADIUS (Authentification).
-4. **Supervision :** Mise en place de la stack Docker (Prometheus/Grafana) pour le monitoring.
-5. **Recette :** Bascule reelle des equipements Cisco et validation de la continuite de service.
+## 5. Preuves techniques et nomenclature
+
+### 5.1 Configurations (uniformisées)
+
+- `preuves/configs/runconf-cisco-sw1-iris.txt`
+- `preuves/configs/runconf-cisco-r1-iris.txt`
+- `preuves/configs/runconf-cisco-ap1-iris.txt`
+- `preuves/configs/runconf-debian-vrouteur-iris.txt`
+- `preuves/configs/exports-services-rp02.txt`
+
+### 5.2 Document de synthèse
+
+- [Fiche RP02 Edib Saoud.pdf](Fiche%20RP02%20Edib%20Saoud.pdf)
+
+
+## 6. Masquage des données sensibles (strict)
+
+Dans les documents, les éléments suivants sont masqués ou remplacés par des variables :
+
+- secrets/mots de passe/clefs ;
+- communautés SNMP ;
+- identités nominatives ;
+- domaines externes ;
+- adresses IP détaillées.
 
